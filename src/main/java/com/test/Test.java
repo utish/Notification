@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringTokenizer;
 
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
@@ -25,11 +26,14 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 
+import com.dao.SSODao;
+import com.iplanet.sso.SSOException;
 import com.iplanet.sso.SSOToken;
 import com.iplanet.sso.SSOTokenManager;
 import com.sun.identity.idm.AMIdentity;
 import com.sun.identity.idm.AMIdentityRepository;
 import com.sun.identity.idm.IdEventListener;
+import com.sun.identity.idm.IdRepoException;
 import com.sun.identity.idm.IdType;
 
 /**
@@ -46,55 +50,13 @@ public class Test extends HttpServlet implements IdEventListener {
 	 */
 	public Test() throws Exception {
 		super();
-		// TODO Auto-generated constructor stub
 
-		System.out.println("constructor ...");
-
-		String tokenId = retrieveToken();
-
-		SSOTokenManager manager = SSOTokenManager.getInstance();
-
-		token = manager.createSSOToken(tokenId);
-
-		System.out.println("token created...");
-
-		// setup
-		idrepo = new AMIdentityRepository(token, "/");
-
-		idrepo.addEventListener(this);
-		
-		
 	}
 
-	public void createIdentity() throws Exception {
-		String strID = "utish";
-		IdType idType = IdType.USER;
-		Map map = new HashMap();
-		Set set = new HashSet();
-		set.add(strID);
-
-		map.put("sn", set);
-		map.put("cn", set);
-
-		set = new HashSet();
-		set.add("active");
-
-		map.put("inetuserstatus", set);
-
-		set = new HashSet();
-		set.add("password");
-
-		map.put("userpassword", set);
-
-		AMIdentity amid = idrepo.createIdentity(idType, strID, map);
-		assert (amid.getName().equals(strID));
-	}
-	
 	public void deleteIdentity() throws Exception {
-		idrepo.deleteIdentities(getAMIdentity(token, "utish", IdType.USER, "/"));
-		
+		idrepo.deleteIdentities(getAMIdentity(token, "xxx", IdType.USER, "/"));
 	}
-	
+
 	private Set<AMIdentity> getAMIdentity(SSOToken token, String name, IdType idType, String realm) {
 		Set<AMIdentity> set = new HashSet<AMIdentity>();
 		set.add(new AMIdentity(token, name, idType, realm, null));
@@ -105,27 +67,50 @@ public class Test extends HttpServlet implements IdEventListener {
 	 * @see Servlet#init(ServletConfig)
 	 */
 	public void init(ServletConfig config) throws ServletException {
-		// TODO Auto-generated method stub
-		System.out.println("init()...");
+		System.out.println("starting init()...");
+
+		try {
+
+			String tokenId = retrieveToken();
+			System.out.println("retrieved the tokenId : " + tokenId);
+
+			SSOTokenManager manager = SSOTokenManager.getInstance();
+			System.out.println("created SSOTokenManager...");
+
+			token = manager.createSSOToken(tokenId);
+			System.out.println("created token...");
+
+			// setup
+			idrepo = new AMIdentityRepository(token, "/");
+			System.out.println("instantiated idrepo...");
+
+			idrepo.addEventListener(this);
+			System.out.println("added listener...");
+			
+			// don't know why this is required...
+			deleteIdentity();
+			System.out.println("finished setup??...");
+			
+			
+
+		} catch (SSOException e) {
+			e.printStackTrace();
+
+		} catch (Exception e) {
+			e.printStackTrace();
+
+		}
+		
+		System.out.println("finished setUp()...");
 	}
 
 	/**
 	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse
 	 *      response)
 	 */
-	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+	protected void doGet(HttpServletRequest request, HttpServletResponse response) {
 		// TODO Auto-generated method stub
 		System.out.println("doGet()...");
-		
-		//createIdentity();
-		
-				try {
-					deleteIdentity();
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					System.out.println("deleteIdentity() has thrown some exception....");
-					e.printStackTrace();
-				}
 	}
 
 	/**
@@ -141,8 +126,67 @@ public class Test extends HttpServlet implements IdEventListener {
 		System.out.println("******************************************************************************allIdentitiesChanged()...");
 	}
 
-	public void identityChanged(String arg0) {
-		// TODO Auto-generated method stub
+	public void identityChanged(String universalId) {
+		System.out.println("****************************************************************************starting identityChanged()....");
+		String userId = retrieveUserId(universalId);
+		Set<AMIdentity> amIdentity = getAMIdentity(token, userId, IdType.USER, "/");
+
+		if (!amIdentity.isEmpty()) {
+			AMIdentity identity = amIdentity.iterator().next();
+
+			String firstName = "";
+			String lastName = "";
+			String email = "";
+			String userName = "";
+
+			try {
+				Map<String, Set<String>> attrMap = identity.getAttributes();
+
+				for (Map.Entry<String, Set<String>> entry : attrMap.entrySet()) {
+
+					System.out.println("key : " + entry.getKey());
+
+					Set<String> set = entry.getValue();
+
+					if (entry.getKey().equalsIgnoreCase("givenName")) {
+						firstName = !set.isEmpty() ? set.iterator().next() : "";
+					}
+
+					if (entry.getKey().equalsIgnoreCase("sn")) {
+						lastName = !set.isEmpty() ? set.iterator().next() : "";
+					}
+
+					if (entry.getKey().equalsIgnoreCase("mail")) {
+						email = !set.isEmpty() ? set.iterator().next() : "";
+					}
+
+					if (entry.getKey().equalsIgnoreCase("uid")) {
+						userName = !set.isEmpty() ? set.iterator().next() : "";
+					}
+
+				}
+
+				System.out.println("givenName : " + firstName);
+				System.out.println("sn : " + lastName);
+				System.out.println("mail : " + email);
+				System.out.println("uid : " + userName);
+
+				SSODao dao = new SSODao();
+
+				System.out.println("Calling update()....");
+				dao.update(firstName, lastName, email, userName);
+
+				System.out.println("Called update()... Check values...");
+
+			} catch (SSOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IdRepoException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+		}
 		System.out.println("******************************************************************************identityChanged()...");
 	}
 
@@ -179,6 +223,27 @@ public class Test extends HttpServlet implements IdEventListener {
 		}
 		return token.replace("token.id=", "");
 
+	}
+
+	private String retrieveUserId(String universalId) {
+		// String id = "id=utish,ou=user,dc=openam,dc=forgerock,dc=org";
+
+		StringTokenizer str = new StringTokenizer(universalId, "=,");
+
+		String userId = "";
+
+		while (str.hasMoreTokens()) {
+			String key = str.nextToken();
+			String value = str.nextToken();
+			// System.out.println("key : " + key + "\t" + "value : " + value);
+			if (key.equalsIgnoreCase("id")) {
+				userId = value;
+			}
+		}
+
+		System.out.println("userId : " + userId);
+
+		return userId;
 	}
 
 }
