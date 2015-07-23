@@ -4,14 +4,13 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
 
-import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -27,6 +26,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 
 import com.dao.SSODao;
+import com.helper.Helper;
 import com.iplanet.sso.SSOException;
 import com.iplanet.sso.SSOToken;
 import com.iplanet.sso.SSOTokenManager;
@@ -36,18 +36,22 @@ import com.sun.identity.idm.IdEventListener;
 import com.sun.identity.idm.IdRepoException;
 import com.sun.identity.idm.IdType;
 
-/**
- * Servlet implementation class Test
- */
 public class Test extends HttpServlet implements IdEventListener {
+	
+	private static final String ADMIN_PASSWORD = "adminPassword";
+	private static final String ADMIN_USER = "adminUser";
+	private static final String DEPLOYMENT_URI = "deploymentURI";
+	private static final String PORT = "port";
+	private static final String HOSTNAME = "hostname";
+	private static final String PROTOCOL = "protocol";
+	private static final String TOKEN_ID = "token.id=";
+	private static final String PASSWORD = "password";
+	private static final String USERNAME = "username";
 	private static final long serialVersionUID = 1L;
 
 	AMIdentityRepository idrepo;
 	SSOToken token;
 
-	/**
-	 * @see HttpServlet#HttpServlet()
-	 */
 	public Test() throws Exception {
 		super();
 
@@ -63,9 +67,6 @@ public class Test extends HttpServlet implements IdEventListener {
 		return set;
 	}
 
-	/**
-	 * @see Servlet#init(ServletConfig)
-	 */
 	public void init(ServletConfig config) throws ServletException {
 		System.out.println("starting init()...");
 
@@ -104,26 +105,16 @@ public class Test extends HttpServlet implements IdEventListener {
 		System.out.println("finished setUp()...");
 	}
 
-	/**
-	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse
-	 *      response)
-	 */
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) {
-		// TODO Auto-generated method stub
 		System.out.println("doGet()...");
 	}
 
-	/**
-	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse
-	 *      response)
-	 */
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		// TODO Auto-generated method stub
+	
 	}
 
 	public void allIdentitiesChanged() {
-		// TODO Auto-generated method stub
-		System.out.println("******************************************************************************allIdentitiesChanged()...");
+	
 	}
 
 	public void identityChanged(String universalId) {
@@ -191,23 +182,32 @@ public class Test extends HttpServlet implements IdEventListener {
 	}
 
 	public void identityDeleted(String arg0) {
-		// TODO Auto-generated method stub
-		System.out.println("******************************************************************************identityDeleted()....");
+		
 	}
 
 	public void identityRenamed(String arg0) {
-		// TODO Auto-generated method stub
-		System.out.println("******************************************************************************identityRenamed()...");
+	
 	}
 
 	private String retrieveToken() throws Exception {
 
 		HttpClient client = new DefaultHttpClient();
-		HttpPost post = new HttpPost("http://localhost:9080/openam/identity/authenticate");
+		
+		Properties prop = Helper.retrieveProperties();
+		
+		String protocol = prop.getProperty(PROTOCOL);
+		String host = prop.getProperty(HOSTNAME);
+		String port = prop.getProperty(PORT);
+		String deploymentURI = prop.getProperty(DEPLOYMENT_URI);
+		String adminUser = prop.getProperty(ADMIN_USER);
+		String adminPassword = prop.getProperty(ADMIN_PASSWORD);
+		
+		String url = new StringBuilder().append(protocol).append("://").append(host).append(":").append(port).append("/").append(deploymentURI).append("/identity/authenticate").toString();
+		HttpPost post = new HttpPost(url);
 
 		List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(2);
-		nameValuePairs.add(new BasicNameValuePair("username", "amadmin"));
-		nameValuePairs.add(new BasicNameValuePair("password", "password"));
+		nameValuePairs.add(new BasicNameValuePair(USERNAME, adminUser));
+		nameValuePairs.add(new BasicNameValuePair(PASSWORD, adminPassword));
 		post.setEntity(new UrlEncodedFormEntity(nameValuePairs));
 
 		HttpResponse response = client.execute(post);
@@ -221,9 +221,11 @@ public class Test extends HttpServlet implements IdEventListener {
 			System.out.println(line);
 			token = line;
 		}
-		return token.replace("token.id=", "");
+		return token.replace(TOKEN_ID, "");
 
 	}
+	
+	
 
 	private String retrieveUserId(String universalId) {
 		// String id = "id=utish,ou=user,dc=openam,dc=forgerock,dc=org";
