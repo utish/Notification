@@ -3,6 +3,7 @@ package com.test;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.MissingResourceException;
+import java.util.Properties;
 import java.util.Set;
 
 import javax.servlet.ServletConfig;
@@ -27,6 +28,7 @@ public class SetupServlet extends HttpServlet implements IdEventListener {
 	
 	private AMIdentityRepository idrepo;
 	private SSOToken token;
+	private String realm = "/";
 
 	
 	/**
@@ -37,6 +39,9 @@ public class SetupServlet extends HttpServlet implements IdEventListener {
 	 */
 	public void init(ServletConfig config) throws ServletException {
 		try {
+			Properties prop = Helper.retrieveProperties();
+			realm = prop.getProperty("realm");
+			
 			// Create the file
 			FileProcessing fp = new FileProcessing();
 			fp.startFileProcessing();
@@ -63,7 +68,7 @@ public class SetupServlet extends HttpServlet implements IdEventListener {
 		String tokenId = Helper.retrieveToken();
 		SSOTokenManager manager = SSOTokenManager.getInstance();
 		token = manager.createSSOToken(tokenId);
-		idrepo = new AMIdentityRepository(token, "/");
+		idrepo = new AMIdentityRepository(token, realm);
 		idrepo.addEventListener(this);
 
 		deleteIdentity();
@@ -72,7 +77,7 @@ public class SetupServlet extends HttpServlet implements IdEventListener {
 	}
 	
 	private void deleteIdentity() throws Exception {
-		idrepo.deleteIdentities(getAMIdentity(token, "xxx", IdType.USER, "/"));
+		idrepo.deleteIdentities(getAMIdentity(token, "xxx", IdType.USER, realm));
 	}
 
 	private Set<AMIdentity> getAMIdentity(SSOToken token, String name, IdType idType, String realm) {
@@ -89,12 +94,12 @@ public class SetupServlet extends HttpServlet implements IdEventListener {
 	@Override
 	public void identityChanged(String universalId) {
 		logger.info("identityChanged() called with universalId :" + universalId);
-
+		
 		String userId = Helper.retrieveUserId(universalId);
 		Set<AMIdentity> amIdentity = new HashSet<>();
 		
 		try {
-			amIdentity = getAMIdentity(token, userId, IdType.USER, "/");
+			amIdentity = getAMIdentity(token, userId, IdType.USER, realm);
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -104,7 +109,7 @@ public class SetupServlet extends HttpServlet implements IdEventListener {
 		try {
 			if (amIdentity == null || amIdentity.isEmpty()) {
 				this.setUpConnection();
-				amIdentity = getAMIdentity(token, userId, IdType.USER, "/");
+				amIdentity = getAMIdentity(token, userId, IdType.USER, realm);
 
 			}
 
