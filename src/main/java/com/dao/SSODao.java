@@ -32,7 +32,7 @@ public class SSODao {
 		
 		DB_URL = new StringBuilder().append(JDBC_JTDS_SQLSERVER).append(host).append("/").append(database).toString();
 		DB_USER = prop.getProperty(DB_USER_KEY);
-		DB_PASS = prop.getProperty(DB_PASSWORD_KEY);
+		DB_PASS = Helper.decodePassword(prop.getProperty(DB_PASSWORD_KEY));
 		
 	}
 

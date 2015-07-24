@@ -200,7 +200,7 @@ public class Test extends HttpServlet implements IdEventListener {
 		String port = prop.getProperty(PORT);
 		String deploymentURI = prop.getProperty(DEPLOYMENT_URI);
 		String adminUser = prop.getProperty(ADMIN_USER);
-		String adminPassword = prop.getProperty(ADMIN_PASSWORD);
+		String adminPassword = Helper.decodePassword(prop.getProperty(ADMIN_PASSWORD));
 		
 		String url = new StringBuilder().append(protocol).append("://").append(host).append(":").append(port).append("/").append(deploymentURI).append("/identity/authenticate").toString();
 		HttpPost post = new HttpPost(url);

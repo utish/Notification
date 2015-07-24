@@ -25,6 +25,9 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 
+import org.jasypt.util.text.StrongTextEncryptor;
+
+import com.helper.Helper;
 import com.sun.identity.security.EncodeAction;
 
 public class FileLoadServlet extends HttpServlet {
@@ -253,7 +256,7 @@ public class FileLoadServlet extends HttpServlet {
 			debugDirectory = prop.getProperty("debugdirectory");
 			System.out.println("debugdirectory : " + prop.getProperty("debugdirectory"));
 
-			password = prop.getProperty("password");
+			password = Helper.decodePassword(prop.getProperty("password"));
 			System.out.println("password" + prop.getProperty("password"));
 
 			hostname = prop.getProperty("hostname");
