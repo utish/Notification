@@ -25,12 +25,16 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jasypt.util.text.StrongTextEncryptor;
 
 import com.helper.Helper;
 import com.sun.identity.security.EncodeAction;
 
 public class FileLoadServlet extends HttpServlet {
+
+	private static final Logger logger = LogManager.getLogger("FileLoadServlet");
 
 	private Map properties = new HashMap();
 	private Map labels = new HashMap();
@@ -75,19 +79,20 @@ public class FileLoadServlet extends HttpServlet {
 	}
 
 	private void startProcessing() throws IOException, MissingResourceException {
-		System.out.println("getDefaultValues()...");
-		getDefaultValues();
+		logger.info("Started processing...");
+		
+		try {
+			getDefaultValues();
+			retrieveValuesFromPropertiesFile();
+			promptForServerAnswers();
+			createPropertiesFile();
+			
+			logger.info("Completed processing...");
 
-		System.out.println("retrieveValuesFromPropertiesFile()...");
-		retrieveValuesFromPropertiesFile();
+		} catch (Exception e) {
+			e.printStackTrace();
 
-		System.out.println("promptForServerAnswers()...");
-		promptForServerAnswers();
-
-		System.out.println("createPropertiesFile()...");
-		createPropertiesFile();
-
-		System.out.println("It's over....");
+		}
 	}
 
 	private void getDefaultValues() throws MissingResourceException {
@@ -115,8 +120,6 @@ public class FileLoadServlet extends HttpServlet {
 	private void promptForServerAnswers() throws IOException {
 		for (Iterator i = questions.iterator(); i.hasNext();) {
 			String q = (String) i.next();
-
-			System.out.println("outer loop.... " + q);
 
 			String value = "";
 			while (value.length() == 0) {
@@ -153,10 +156,7 @@ public class FileLoadServlet extends HttpServlet {
 
 				value = value.trim();
 
-				System.out.println("value at the end of while loop..." + q);
 			}
-
-			System.out.println("key values being inserted... key : " + q + ", value : " + value);
 
 			if (q.equals(TAG_APPLICATION_PASSWD)) {
 				properties.put(q, (String) AccessController.doPrivileged(new EncodeAction(value)));
@@ -164,71 +164,34 @@ public class FileLoadServlet extends HttpServlet {
 				properties.put(q, value);
 			}
 
-			System.out.println("put value in properties map and returning....");
 		}
 	}
 
-	private void createPropertiesFile()
+	private void createPropertiesFile() throws Exception {
+		URL path = Thread.currentThread().getContextClassLoader().getResource("com/test/");
+		File file = new File(path.getPath() + "../../" + FILE_AMCONFIG_PROPERTIES_TEMPLATE);
+		String content = getFileContent(file.getAbsolutePath());
 
-	{
-		try {
-			System.out.println("it's stuck at this point???");
 
-			URL path = Thread.currentThread().getContextClassLoader().getResource("com/test/");
-
-			System.out.println("URL : " + path);
-
-			File file = new File(path.getPath() + "../../" + FILE_AMCONFIG_PROPERTIES_TEMPLATE);
-
-			String content = getFileContent(file.getAbsolutePath());
-
-			System.out.println(content.substring(1, 100));
-
-			for (Iterator i = properties.keySet().iterator(); i.hasNext();) {
-				String tag = (String) i.next();
-				String value = (String) properties.get(tag);
-				value = value.replaceAll("\\\\", "\\\\\\\\");
-				content = content.replaceAll("@" + tag + "@", value);
-			}
-
-			String protocol = "http";
-			if (protocol.equalsIgnoreCase("https")) {
-				content += TRUST_ALL_CERTS;
-			}
-
-			System.out.println("Reading to write...");
-
-			File amConfigFile = new File(path.getPath() + "../../" + FILE_AMCONFIG_PROPERTIES);
-
-			BufferedWriter out = new BufferedWriter(new FileWriter(amConfigFile));
-			out.write(content);
-			out.close();
-
-			System.out.println("Finished writing... Yureka moment!!!!");
-
-		} catch (IOException e) {
-			e.printStackTrace();
-
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	private String convertToString(InputStream inputStream) throws IOException {
-
-		InputStreamReader is = new InputStreamReader(inputStream);
-		StringBuilder sb = new StringBuilder();
-		BufferedReader br = new BufferedReader(is);
-		String read = br.readLine();
-
-		while (read != null) {
-			
-			sb.append(read);
-			read = br.readLine();
-
+		for (Iterator i = properties.keySet().iterator(); i.hasNext();) {
+			String tag = (String) i.next();
+			String value = (String) properties.get(tag);
+			value = value.replaceAll("\\\\", "\\\\\\\\");
+			content = content.replaceAll("@" + tag + "@", value);
 		}
 
-		return sb.toString();
+		String protocol = "http";
+		if (protocol.equalsIgnoreCase("https")) {
+			content += TRUST_ALL_CERTS;
+		}
+
+		
+		File amConfigFile = new File(path.getPath() + "../../" + FILE_AMCONFIG_PROPERTIES);
+
+		BufferedWriter out = new BufferedWriter(new FileWriter(amConfigFile));
+		out.write(content);
+		out.close();
+	
 	}
 
 	private String getFileContent(String fileName) throws IOException {
@@ -254,25 +217,15 @@ public class FileLoadServlet extends HttpServlet {
 			prop.load(input);
 
 			debugDirectory = prop.getProperty("debugdirectory");
-			System.out.println("debugdirectory : " + prop.getProperty("debugdirectory"));
-
 			password = Helper.decodePassword(prop.getProperty("password"));
-			System.out.println("password" + prop.getProperty("password"));
-
 			hostname = prop.getProperty("hostname");
-			System.out.println("hostname : " + prop.getProperty("hostname"));
-
 			port = prop.getProperty("port");
-			System.out.println("port : " + prop.getProperty("port"));
-
 			deploymentURI = prop.getProperty("deploymentURI");
-			System.out.println("deploymentURI : " + prop.getProperty("deploymentURI"));
-
 			protocol = prop.getProperty("protocol");
-			System.out.println("protocol : " + prop.getProperty("protocol"));
-
+			
 		} catch (IOException e) {
 			e.printStackTrace();
+			
 		} finally {
 			if (input != null) {
 				try {
@@ -291,7 +244,7 @@ public class FileLoadServlet extends HttpServlet {
 
 			e.printStackTrace();
 		} catch (IOException e) {
-			
+
 			e.printStackTrace();
 		}
 	}

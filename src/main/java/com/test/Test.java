@@ -24,20 +24,22 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.dao.SSODao;
 import com.helper.Helper;
-import com.iplanet.sso.SSOException;
 import com.iplanet.sso.SSOToken;
 import com.iplanet.sso.SSOTokenManager;
 import com.sun.identity.idm.AMIdentity;
 import com.sun.identity.idm.AMIdentityRepository;
 import com.sun.identity.idm.IdEventListener;
-import com.sun.identity.idm.IdRepoException;
 import com.sun.identity.idm.IdType;
 
 public class Test extends HttpServlet implements IdEventListener {
-	
+
+	private static final Logger logger = LogManager.getLogger("Test");
+
 	private static final String ADMIN_PASSWORD = "adminPassword";
 	private static final String ADMIN_USER = "adminUser";
 	private static final String DEPLOYMENT_URI = "deploymentURI";
@@ -68,140 +70,129 @@ public class Test extends HttpServlet implements IdEventListener {
 	}
 
 	public void init(ServletConfig config) throws ServletException {
-		System.out.println("starting init()...");
 
 		try {
-
-			String tokenId = retrieveToken();
-			System.out.println("retrieved the tokenId : " + tokenId);
-
-			SSOTokenManager manager = SSOTokenManager.getInstance();
-			System.out.println("created SSOTokenManager...");
-
-			token = manager.createSSOToken(tokenId);
-			System.out.println("created token...");
-
-			// setup
-			idrepo = new AMIdentityRepository(token, "/");
-			System.out.println("instantiated idrepo...");
-
-			idrepo.addEventListener(this);
-			System.out.println("added listener...");
-			
-			// don't know why this is required...
-			deleteIdentity();
-			System.out.println("finished setup??...");
-			
-			
-
-		} catch (SSOException e) {
-			e.printStackTrace();
+			this.setUpConnection();
 
 		} catch (Exception e) {
 			e.printStackTrace();
 
 		}
-		
-		System.out.println("finished setUp()...");
+
+	}
+
+	private void setUpConnection() throws Exception {
+		logger.info("Starting setUpConnection()");
+
+		String tokenId = retrieveToken();
+		SSOTokenManager manager = SSOTokenManager.getInstance();
+		token = manager.createSSOToken(tokenId);
+		idrepo = new AMIdentityRepository(token, "/");
+		idrepo.addEventListener(this);
+
+		deleteIdentity();
+
+		logger.info("finished setUpConnection()");
 	}
 
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) {
-		System.out.println("doGet()...");
+		logger.info("Called doGet()..");
+
 	}
 
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-	
+
 	}
 
 	public void allIdentitiesChanged() {
-	
 	}
 
 	public void identityChanged(String universalId) {
-		System.out.println("****************************************************************************starting identityChanged()....");
+		logger.info("identityChanged() called with universalId :" + universalId);
+
 		String userId = retrieveUserId(universalId);
-		Set<AMIdentity> amIdentity = getAMIdentity(token, userId, IdType.USER, "/");
+		Set<AMIdentity> amIdentity = new HashSet<>();
+		
+		try {
+			amIdentity = getAMIdentity(token, userId, IdType.USER, "/");
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			
+		}
 
-		if (!amIdentity.isEmpty()) {
-			AMIdentity identity = amIdentity.iterator().next();
+		try {
+			if (amIdentity == null || amIdentity.isEmpty()) {
+				this.setUpConnection();
+				amIdentity = getAMIdentity(token, userId, IdType.USER, "/");
 
-			String firstName = "";
-			String lastName = "";
-			String email = "";
-			String userName = "";
+			}
 
-			try {
-				Map<String, Set<String>> attrMap = identity.getAttributes();
+			this.updateDatabase(amIdentity.iterator().next());
+		} catch (Exception e) {
+			e.printStackTrace();
 
-				for (Map.Entry<String, Set<String>> entry : attrMap.entrySet()) {
+		}
+		logger.info("Finished executing idenityChanged()...");
+	}
 
-					System.out.println("key : " + entry.getKey());
+	private void updateDatabase(AMIdentity amIdentity) throws Exception {
+		String firstName = "";
+		String lastName = "";
+		String email = "";
+		String userName = "";
 
-					Set<String> set = entry.getValue();
+		Map<String, Set<String>> attrMap = amIdentity.getAttributes();
 
-					if (entry.getKey().equalsIgnoreCase("givenName")) {
-						firstName = !set.isEmpty() ? set.iterator().next() : "";
-					}
+		for (Map.Entry<String, Set<String>> entry : attrMap.entrySet()) {
 
-					if (entry.getKey().equalsIgnoreCase("sn")) {
-						lastName = !set.isEmpty() ? set.iterator().next() : "";
-					}
+			Set<String> set = entry.getValue();
 
-					if (entry.getKey().equalsIgnoreCase("mail")) {
-						email = !set.isEmpty() ? set.iterator().next() : "";
-					}
+			if (entry.getKey().equalsIgnoreCase("givenName")) {
+				firstName = !set.isEmpty() ? set.iterator().next() : "";
+			}
 
-					if (entry.getKey().equalsIgnoreCase("uid")) {
-						userName = !set.isEmpty() ? set.iterator().next() : "";
-					}
+			if (entry.getKey().equalsIgnoreCase("sn")) {
+				lastName = !set.isEmpty() ? set.iterator().next() : "";
+			}
 
-				}
+			if (entry.getKey().equalsIgnoreCase("mail")) {
+				email = !set.isEmpty() ? set.iterator().next() : "";
+			}
 
-				System.out.println("givenName : " + firstName);
-				System.out.println("sn : " + lastName);
-				System.out.println("mail : " + email);
-				System.out.println("uid : " + userName);
-
-				SSODao dao = new SSODao();
-
-				System.out.println("Calling update()....");
-				dao.update(firstName, lastName, email, userName);
-
-				System.out.println("Called update()... Check values...");
-
-			} catch (SSOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IdRepoException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			if (entry.getKey().equalsIgnoreCase("uid")) {
+				userName = !set.isEmpty() ? set.iterator().next() : "";
 			}
 
 		}
-		System.out.println("******************************************************************************identityChanged()...");
+
+		SSODao dao = new SSODao();
+
+		dao.update(firstName, lastName, email, userName);
 	}
 
 	public void identityDeleted(String arg0) {
-		
+
 	}
 
 	public void identityRenamed(String arg0) {
-	
+
 	}
 
 	private String retrieveToken() throws Exception {
+		logger.info("Calling retrieveToken()...");
 
 		HttpClient client = new DefaultHttpClient();
-		
+
 		Properties prop = Helper.retrieveProperties();
-		
+
 		String protocol = prop.getProperty(PROTOCOL);
 		String host = prop.getProperty(HOSTNAME);
 		String port = prop.getProperty(PORT);
 		String deploymentURI = prop.getProperty(DEPLOYMENT_URI);
 		String adminUser = prop.getProperty(ADMIN_USER);
 		String adminPassword = Helper.decodePassword(prop.getProperty(ADMIN_PASSWORD));
-		
+
 		String url = new StringBuilder().append(protocol).append("://").append(host).append(":").append(port).append("/").append(deploymentURI).append("/identity/authenticate").toString();
 		HttpPost post = new HttpPost(url);
 
@@ -218,18 +209,13 @@ public class Test extends HttpServlet implements IdEventListener {
 		String token = "";
 
 		while ((line = rd.readLine()) != null) {
-			System.out.println(line);
 			token = line;
 		}
 		return token.replace(TOKEN_ID, "");
 
 	}
-	
-	
 
 	private String retrieveUserId(String universalId) {
-		// String id = "id=utish,ou=user,dc=openam,dc=forgerock,dc=org";
-
 		StringTokenizer str = new StringTokenizer(universalId, "=,");
 
 		String userId = "";
@@ -237,13 +223,10 @@ public class Test extends HttpServlet implements IdEventListener {
 		while (str.hasMoreTokens()) {
 			String key = str.nextToken();
 			String value = str.nextToken();
-			// System.out.println("key : " + key + "\t" + "value : " + value);
 			if (key.equalsIgnoreCase("id")) {
 				userId = value;
 			}
 		}
-
-		System.out.println("userId : " + userId);
 
 		return userId;
 	}
