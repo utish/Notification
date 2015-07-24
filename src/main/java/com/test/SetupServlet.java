@@ -25,23 +25,21 @@ public class SetupServlet extends HttpServlet implements IdEventListener {
 
 	private static final long serialVersionUID = 1L;
 	private static final Logger logger = LogManager.getLogger("SetupServlet");
-	
+
 	private AMIdentityRepository idrepo;
 	private SSOToken token;
 	private String realm = "/";
 
-	
 	/**
-	 * Entry point of the application.
-	 * It creates the AMConfig.properties from the template.
-	 * It establishes connection with OpenAM
+	 * Entry point of the application. It creates the AMConfig.properties from
+	 * the template. It establishes connection with OpenAM
 	 * 
 	 */
 	public void init(ServletConfig config) throws ServletException {
 		try {
 			Properties prop = Helper.retrieveProperties();
 			realm = prop.getProperty("realm");
-			
+
 			// Create the file
 			FileProcessing fp = new FileProcessing();
 			fp.startFileProcessing();
@@ -61,7 +59,6 @@ public class SetupServlet extends HttpServlet implements IdEventListener {
 		}
 	}
 
-	
 	private void setUpConnection() throws Exception {
 		logger.info("Starting setUpConnection()");
 
@@ -75,7 +72,7 @@ public class SetupServlet extends HttpServlet implements IdEventListener {
 
 		logger.info("finished setUpConnection()");
 	}
-	
+
 	private void deleteIdentity() throws Exception {
 		idrepo.deleteIdentities(getAMIdentity(token, "xxx", IdType.USER, realm));
 	}
@@ -85,41 +82,45 @@ public class SetupServlet extends HttpServlet implements IdEventListener {
 		set.add(new AMIdentity(token, name, idType, realm, null));
 		return set;
 	}
-	
+
 	@Override
 	public void allIdentitiesChanged() {
-	
+
 	}
 
 	@Override
 	public void identityChanged(String universalId) {
 		logger.info("identityChanged() called with universalId :" + universalId);
 		
-		String userId = Helper.retrieveUserId(universalId);
-		Set<AMIdentity> amIdentity = new HashSet<>();
-		
-		try {
-			amIdentity = getAMIdentity(token, userId, IdType.USER, realm);
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-			
-		}
+		System.out.println("identityChanged()....");
 
 		try {
-			if (amIdentity == null || amIdentity.isEmpty()) {
-				this.setUpConnection();
-				amIdentity = getAMIdentity(token, userId, IdType.USER, realm);
+			
+			String tokenId = Helper.retrieveToken();
+			System.out.println("retrieved new tokenId..." + tokenId);
+			
+			SSOTokenManager manager = SSOTokenManager.getInstance();
+			token = manager.createSSOToken(tokenId);
+			
+			System.out.println("retrieved a new token...");
 
+			String userId = Helper.retrieveUserId(universalId);
+			System.out.println("userId : " + userId);
+			
+			Set<AMIdentity> amIdentity = getAMIdentity(token, userId, IdType.USER, realm);
+			
+			if(!amIdentity.isEmpty()) {
+				System.out.println("retrieved amIdentity");
+				
+				Helper.updateDatabase(amIdentity.iterator().next());
+				System.out.println("updated database...");
 			}
 
-			Helper.updateDatabase(amIdentity.iterator().next());
-			
 		} catch (Exception e) {
 			e.printStackTrace();
 
 		}
-		
+
 		logger.info("Finished executing idenityChanged()...");
 	}
 
@@ -133,5 +134,4 @@ public class SetupServlet extends HttpServlet implements IdEventListener {
 
 	}
 
-	
 }
