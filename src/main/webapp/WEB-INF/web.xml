@@ -1,47 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee 
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee 
 		 http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
-         version="3.1">
-         
- <context-param>
-  <param-name>openam</param-name>
-  <param-value>openam.properties</param-value>
- </context-param>        
+	version="3.1">
 
- <servlet>
-    <description></description>
-    <display-name>Test</display-name>
-    <servlet-name>Test</servlet-name>
-    <servlet-class>com.test.Test</servlet-class>
-    
-  </servlet>
-  
-  <servlet>
-  	<display-name>FileLoadServlet</display-name>
-  	<servlet-name>FileLoadServlet</servlet-name>
-  	<servlet-class>com.test.FileLoadServlet</servlet-class>
-  	<load-on-startup>1</load-on-startup>
-  	
-  </servlet>
-  
-  <servlet>
-        <description>notificationservice</description>
-        <servlet-name>notificationservice</servlet-name>
-        <servlet-class>com.iplanet.services.comm.client.PLLNotificationServlet</servlet-class>
-  </servlet>
-    
-  <servlet-mapping>
-    <servlet-name>Test</servlet-name>
-    <url-pattern>/Test</url-pattern>
-  </servlet-mapping>
-  
-  <servlet-mapping>
-        <servlet-name>notificationservice</servlet-name>
-        <url-pattern>/notificationservice</url-pattern>
-  </servlet-mapping>
-    
-    
+	<context-param>
+		<param-name>openam</param-name>
+		<param-value>openam.properties</param-value>
+	</context-param>
+
+
+	<servlet>
+		<display-name>SetupServlet</display-name>
+		<servlet-name>SetupServlet</servlet-name>
+		<servlet-class>com.test.SetupServlet</servlet-class>
+		<load-on-startup>1</load-on-startup>
+
+	</servlet>
+
+	<servlet>
+		<description>notificationservice</description>
+		<servlet-name>notificationservice</servlet-name>
+		<servlet-class>com.iplanet.services.comm.client.PLLNotificationServlet</servlet-class>
+	</servlet>
+
+
+	<servlet-mapping>
+		<servlet-name>notificationservice</servlet-name>
+		<url-pattern>/notificationservice</url-pattern>
+	</servlet-mapping>
+
+
 </web-app>

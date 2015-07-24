@@ -8,7 +8,6 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URL;
 import java.security.AccessController;
 import java.util.ArrayList;
@@ -21,29 +20,15 @@ import java.util.MissingResourceException;
 import java.util.Properties;
 import java.util.ResourceBundle;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jasypt.util.text.StrongTextEncryptor;
 
 import com.helper.Helper;
 import com.sun.identity.security.EncodeAction;
 
-public class FileLoadServlet extends HttpServlet {
+public class FileProcessing {
 
-	private static final Logger logger = LogManager.getLogger("FileLoadServlet");
-
-	private Map properties = new HashMap();
-	private Map labels = new HashMap();
-	private String debugDirectory;
-	private String password;
-	private String hostname;
-	private String port;
-	private String deploymentURI;
-	private String protocol;
+	private static final Logger logger = LogManager.getLogger("FileProcessing");
 
 	private static final String FILE_AMCONFIG_PROPERTIES_TEMPLATE = "AMConfig.properties.template";
 	private static final String FILE_AMCONFIG_PROPERTIES = "AMConfig.properties";
@@ -65,6 +50,16 @@ public class FileLoadServlet extends HttpServlet {
 	private static final String CLIENT_ENC_KEY = "com.sun.identity.client.encryptionKey";
 	private static final String AM_ENC_KEY = "am.encryption.pwd";
 
+	private Map properties = new HashMap();
+	private Map labels = new HashMap();
+
+	private String debugDirectory;
+	private String password;
+	private String hostname;
+	private String port;
+	private String deploymentURI;
+	private String protocol;
+
 	private static List questions = new ArrayList();
 	private static List clientQuestions = new ArrayList();
 
@@ -78,21 +73,16 @@ public class FileLoadServlet extends HttpServlet {
 		questions.add(TAG_NAMING_URL);
 	}
 
-	private void startProcessing() throws IOException, MissingResourceException {
+	public void startFileProcessing() throws Exception {
 		logger.info("Started processing...");
-		
-		try {
-			getDefaultValues();
-			retrieveValuesFromPropertiesFile();
-			promptForServerAnswers();
-			createPropertiesFile();
-			
-			logger.info("Completed processing...");
 
-		} catch (Exception e) {
-			e.printStackTrace();
+		getDefaultValues();
+		retrieveValuesFromPropertiesFile();
+		promptForServerAnswers();
+		createPropertiesFile();
 
-		}
+		logger.info("Completed processing...");
+
 	}
 
 	private void getDefaultValues() throws MissingResourceException {
@@ -172,7 +162,6 @@ public class FileLoadServlet extends HttpServlet {
 		File file = new File(path.getPath() + "../../" + FILE_AMCONFIG_PROPERTIES_TEMPLATE);
 		String content = getFileContent(file.getAbsolutePath());
 
-
 		for (Iterator i = properties.keySet().iterator(); i.hasNext();) {
 			String tag = (String) i.next();
 			String value = (String) properties.get(tag);
@@ -185,13 +174,12 @@ public class FileLoadServlet extends HttpServlet {
 			content += TRUST_ALL_CERTS;
 		}
 
-		
 		File amConfigFile = new File(path.getPath() + "../../" + FILE_AMCONFIG_PROPERTIES);
 
 		BufferedWriter out = new BufferedWriter(new FileWriter(amConfigFile));
 		out.write(content);
 		out.close();
-	
+
 	}
 
 	private String getFileContent(String fileName) throws IOException {
@@ -222,10 +210,10 @@ public class FileLoadServlet extends HttpServlet {
 			port = prop.getProperty("port");
 			deploymentURI = prop.getProperty("deploymentURI");
 			protocol = prop.getProperty("protocol");
-			
+
 		} catch (IOException e) {
 			e.printStackTrace();
-			
+
 		} finally {
 			if (input != null) {
 				try {
@@ -234,18 +222,6 @@ public class FileLoadServlet extends HttpServlet {
 					e.printStackTrace();
 				}
 			}
-		}
-	}
-
-	public void init(ServletConfig config) throws ServletException {
-		try {
-			this.startProcessing();
-		} catch (MissingResourceException e) {
-
-			e.printStackTrace();
-		} catch (IOException e) {
-
-			e.printStackTrace();
 		}
 	}
 
